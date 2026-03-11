@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Pies czy Wilk?</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #070C14; --surface:  #0D1520; --border:   #1A2535;
+    --teal:     #0D9488; --teal2:    #14B8A6; --amber:    #F59E0B;
+    --red:      #EF4444; --green:    #22C55E; --muted:    #64748B;
+    --silver:   #94A3B8; --text:     #E2E8F0;
+    --grid-cols: 6; /* Gęstość siatki */
+    --grid-rows: 6;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; display: flex; flex-direction: column; }
+  h1, h2, h3 { font-family: 'Syne', sans-serif; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+  .logo { font-size: 1.25rem; font-weight: 700; color: var(--teal2); letter-spacing: -0.5px; }
+  .nav-btn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; transition: 0.2s; font-family: inherit; }
+  .nav-btn:hover { border-color: var(--teal); color: var(--text); }
+  .view { display: none; flex: 1; padding: 2rem; max-width: 1200px; margin: 0 auto; width: 100%; }
+  .view.active { display: flex; flex-direction: column; }
+
+  /* START VIEW */
+  #view-start { text-align: center; justify-content: center; align-items: center; }
+  .hero-title { font-size: 3rem; margin-bottom: 1rem; color: #fff; }
+  .hero-sub { color: var(--silver); margin-bottom: 3rem; max-width: 500px; line-height: 1.5; }
+  .role-cards { display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; width: 280px; text-align: left; cursor: pointer; transition: 0.2s; }
+  .card:hover { transform: translateY(-4px); border-color: var(--teal); box-shadow: 0 10px 30px -10px rgba(13,148,136,0.2); }
+  .card h3 { margin-bottom: 0.5rem; color: var(--teal2); font-size: 1.5rem; }
+  .card p { color: var(--muted); font-size: 0.875rem; line-height: 1.5; }
+
+  /* STUDENT VIEW */
+  .sv-header { margin-bottom: 1.5rem; text-align: center; }
+  .sv-instruction { color: var(--silver); margin-bottom: 1rem; text-align: center; }
+  .captcha-wrapper { position: relative; width: 100%; max-width: 500px; margin: 0 auto; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); line-height: 0; }
+  .target-img { width: 100%; height: auto; display: block; }
+  .grid-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: grid; grid-template-columns: repeat(var(--grid-cols), 1fr); grid-template-rows: repeat(var(--grid-rows), 1fr); }
+  .tile { border: 1px solid rgba(255,255,255,0.15); cursor: pointer; transition: background 0.1s; }
+  .tile:hover { background: rgba(255,255,255,0.2); }
+  .tile.selected { background: rgba(239, 68, 68, 0.4); border-color: var(--red); }
+  .sv-actions { display: flex; justify-content: space-between; max-width: 500px; margin: 1.5rem auto 0; align-items: center; }
+  .btn-submit { background: var(--teal); color: #fff; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; font-weight: 600; cursor: pointer; }
+  .btn-submit:hover { background: var(--teal2); }
+  .btn-clear { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer; }
+
+  /* PROJECTOR VIEW */
+  .pv-layout { display: flex; flex-direction: column; gap: 2rem; height: 100%; }
+  .pv-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+  .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; }
+  .panel h3 { color: var(--teal2); margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  .viz-container { position: relative; width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); line-height: 0; background: #000; }
+  .viz-img { width: 100%; display: block; }
+  .gradcam-img { width: 100%; height: auto; display: block; object-fit: cover; }
+  .tile-heatmap { border: 1px solid rgba(255,255,255,0.05); }
+  .session-controls { margin-top: 2rem; text-align: center; }
+  .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--red); border: 1px solid var(--red); padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
+  @media(max-width: 768px) { .comparison-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Pies czy Wilk?</div>
+  <button class="nav-btn" onclick="showView('start')" id="btn-home" style="display:none;">Strona Główna</button>
+</header>
+
+<div id="view-start" class="view active">
+  <h1 class="hero-title">Jak maszyna widzi obraz</h1>
+  <p class="hero-sub">Zaznacz najważniejsze cechy na zdjęciu i porównaj swoją intuicję z mapą aktywacji (Grad-CAM) sieci neuronowej ResNet50.</p>
+  <div class="role-cards">
+    <div class="card" onclick="startStudent()">
+      <h3>Jestem Uczestnikiem</h3>
+      <p>Będę zaznaczać obszary (cechy) na zdjęciach, które decydują o klasyfikacji obrazu.</p>
+    </div>
+    <div class="card" onclick="startProjector()">
+      <h3>Pokaż Wyniki (Projektor)</h3>
+      <p>Główny ekran warsztatowy pokazujący zagregowane wyniki na żywo.</p>
+    </div>
+  </div>
+</div>
+
+<div id="view-student" class="view">
+  <div class="sv-header"><h2 id="sv-title">Zwierzę 1</h2></div>
+  <p class="sv-instruction" id="sv-inst">Zaznacz kafelki, które Twoim zdaniem jednoznacznie wskazują czy to Pies czy Wilk.</p>
+  <div class="captcha-wrapper" id="sv-wrapper">
+    <img id="sv-img" class="target-img" src="" alt="Zwierzę">
+    <div class="grid-overlay" id="sv-grid"></div>
+  </div>
+  <div class="sv-actions">
+    <span class="sv-counter" style="color:var(--muted);"><span id="tile-count">0</span> zaznaczonych</span>
+    <div>
+      <button class="btn-clear" onclick="clearStudentTiles()">Wyczyść</button>
+      <button class="btn-submit" onclick="submitVote()">Wyślij Głos</button>
+    </div>
+  </div>
+  <div id="submitted-msg" style="display:none; text-align:center; padding: 3rem 0;">
+    <h2 style="color:var(--green); margin-bottom:1rem;" id="sub-msg-title">Wysłano!</h2>
+    <p style="color:var(--silver); margin-bottom:2rem;" id="sub-msg-desc">Twój głos został zapisany w chmurze.</p>
+    <button class="btn-submit" id="btn-next-student" onclick="resetStudentForNext()">Następne zdjęcie</button>
+  </div>
+</div>
+
+<div id="view-projector" class="view">
+  <div class="pv-layout">
+    <div class="pv-top">
+      <h2>Wyniki na żywo: <span id="pv-title" style="color:var(--teal2);">Zwierzę 1</span></h2>
+      <select id="proj-selector" style="padding:0.5rem; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:4px;" onchange="switchProjector(this.value)"></select>
+    </div>
+    <div class="comparison-grid">
+      <div class="panel">
+        <h3>Klasa (Ludzka Intuicja)</h3>
+        <p style="color:var(--muted); font-size:0.875rem; margin-bottom:1rem;">Głosy aktualizują się automatycznie.</p>
+        <div class="viz-container">
+          <img id="pv-img-human" class="viz-img" src="">
+          <div class="grid-overlay" id="pv-grid-human"></div>
+        </div>
+        <p style="margin-top:1rem; color:var(--silver); font-size:0.875rem;">Liczba głosów łącznie: <strong id="pv-vote-count" style="color:#fff;">0</strong></p>
+      </div>
+      <div class="panel">
+        <h3>Model ResNet50 (Grad-CAM)</h3>
+        <p style="color:var(--muted); font-size:0.875rem; margin-bottom:1rem;">Na co patrzyła sieć neuronowa.</p>
+        <div class="viz-container">
+          <img id="pv-img-ai" class="gradcam-img" src="">
+        </div>
+      </div>
+    </div>
+    <div class="session-controls">
+      <button class="btn-danger" onclick="resetSession()">Zresetuj wszystkie wyniki (wyczyść głosy)</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+  import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyA5A-I-ydcNsZkoMo8bdOvc0fAI42sL6vE",
+    authDomain: "bbcaptcha-a6c88.firebaseapp.com",
+    databaseURL: "https://bbcaptcha-a6c88-default-rtdb.firebaseio.com",
+    projectId: "bbcaptcha-a6c88",
+    storageBucket: "bbcaptcha-a6c88.firebasestorage.app",
+    messagingSenderId: "3679003413",
+    appId: "1:3679003413:web:a28e27f6c7795541c8bf1c",
+    measurementId: "G-X55C43M86Q"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // ==========================================
+  // KONFIGURACJA DANYCH
+  // ==========================================
+  const ANIMALS = [
+    // ----------------- PIESKI -----------------
+    {
+      id: 'pies1',
+      img: 'zdjecia_apka/pieski/n02111889_2476.jpg',
+      cam: 'zdjecia_apka/pieski/n02111889_2476_cam.png',
+      name: 'Pies 1',
+      aiTiles: [17, 23, 22, 16, 26, 27, 13]
+    },
+    {
+      id: 'pies2',
+      img: 'zdjecia_apka/pieski/n02112350_9461.jpg',
+      cam: 'zdjecia_apka/pieski/n02112350_9461_cam.png',
+      name: 'Pies 2',
+      aiTiles: [21, 22, 15, 27, 33, 16, 28]
+    },
+    {
+      id: 'pies3',
+      img: 'zdjecia_apka/pieski/n02113624_530.jpg',
+      cam: 'zdjecia_apka/pieski/n02113624_530_cam.png',
+      name: 'Pies 3',
+      aiTiles: [16, 15, 10, 21, 22, 9, 27]
+    },
+
+    // ----------------- WILKI -----------------
+    {
+      id: 'wilk1',
+      img: 'zdjecia_apka/wilki/axelforhomepage.jpg',
+      cam: 'zdjecia_apka/wilki/axelforhomepage_cam.png',
+      name: 'Wilk 1',
+      aiTiles: [22, 16, 10, 35, 28, 21, 17]
+    },
+    {
+      id: 'wilk2',
+      img: 'zdjecia_apka/wilki/image27.jpeg',
+      cam: 'zdjecia_apka/wilki/image27_cam.png',
+      name: 'Wilk 2',
+      aiTiles: [15, 21, 22, 16, 27, 20, 14]
+    },
+    {
+      id: 'wilk3',
+      img: 'zdjecia_apka/wilki/images66.jpg',
+      cam: 'zdjecia_apka/wilki/images66_cam.png',
+      name: 'Wilk 3',
+      aiTiles: [15, 9, 14, 16, 21, 20, 8]
+    }
+  ];
+
+  const GRID_COLS = 6;
+  const GRID_ROWS = 6;
+  const TOTAL_TILES = GRID_COLS * GRID_ROWS;
+
+  let activeAnimalIdx = 0;
+  let studentTiles = new Set();
+  let studentCompleted = new Set();
+  let activeListener = null;
+
+  // ==========================================
+  // NAWIGACJA
+  // ==========================================
+  window.showView = function(viewId) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + viewId).classList.add('active');
+    document.getElementById('btn-home').style.display = viewId === 'start' ? 'none' : 'block';
+  };
+
+  // ==========================================
+  // WIDOK STUDENTA
+  // ==========================================
+  window.startStudent = function() {
+    studentCompleted.clear();
+    switchAnimal(0, 'student');
+    window.showView('student');
+  };
+
+  function switchAnimal(idx, mode) {
+    activeAnimalIdx = idx;
+    const animal = ANIMALS[idx];
+    
+    if (mode === 'student') {
+      document.getElementById('sv-title').textContent = animal.name;
+      document.getElementById('sv-img').src = animal.img;
+      buildStudentGrid();
+      document.querySelector('.captcha-wrapper').style.display = 'block';
+      document.querySelector('.sv-instruction').style.display = 'block';
+      document.querySelector('.sv-actions').style.display = 'flex';
+      document.getElementById('submitted-msg').style.display = 'none';
+    }
+  }
+
+  function buildStudentGrid() {
+    const container = document.getElementById('sv-grid');
+    container.innerHTML = '';
+    studentTiles.clear();
+    document.getElementById('tile-count').textContent = '0';
+
+    for (let i = 0; i < TOTAL_TILES; i++) {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.onclick = function() {
+        if(studentTiles.has(i)) {
+          studentTiles.delete(i); tile.classList.remove('selected');
+        } else {
+          studentTiles.add(i); tile.classList.add('selected');
+        }
+        document.getElementById('tile-count').textContent = studentTiles.size;
+      };
+      container.appendChild(tile);
+    }
+  }
+
+  window.clearStudentTiles = function() {
+    studentTiles.clear();
+    document.querySelectorAll('#sv-grid .tile').forEach(t => t.classList.remove('selected'));
+    document.getElementById('tile-count').textContent = '0';
+  };
+
+  window.submitVote = function() {
+    if(studentTiles.size === 0) {
+      alert("Zaznacz co najmniej jeden obszar przed wysłaniem!");
+      return;
+    }
+    
+    const animalId = ANIMALS[activeAnimalIdx].id;
+    
+    // ZAPIS DO FIREBASE
+    const votesRef = ref(db, 'votes/' + animalId);
+    push(votesRef, Array.from(studentTiles));
+    
+    studentCompleted.add(activeAnimalIdx);
+    
+    document.querySelector('.captcha-wrapper').style.display = 'none';
+    document.querySelector('.sv-instruction').style.display = 'none';
+    document.querySelector('.sv-actions').style.display = 'none';
+    
+    const nextBtn = document.getElementById('btn-next-student');
+    if(studentCompleted.size >= ANIMALS.length) {
+      document.getElementById('sub-msg-title').textContent = 'Dziękujemy!';
+      document.getElementById('sub-msg-desc').textContent = 'Oceniłeś wszystkie dostępne obrazy. Spójrz na ekran projektora!';
+      nextBtn.style.display = 'none';
+    } else {
+      document.getElementById('sub-msg-title').textContent = 'Wysłano!';
+      document.getElementById('sub-msg-desc').textContent = 'Twój głos powędrował do chmury.';
+      nextBtn.style.display = 'inline-block';
+    }
+    document.getElementById('submitted-msg').style.display = 'block';
+  };
+
+  window.resetStudentForNext = function() {
+    let nextIdx = -1;
+    for(let i=0; i < ANIMALS.length; i++) {
+      const idx = (activeAnimalIdx + 1 + i) % ANIMALS.length;
+      if(!studentCompleted.has(idx)) { nextIdx = idx; break; }
+    }
+    if(nextIdx !== -1) switchAnimal(nextIdx, 'student');
+  };
+
+  // ==========================================
+  // WIDOK PROJEKTORA (NASŁUCHIWANIE Z FIREBASE)
+  // ==========================================
+  window.startProjector = function() {
+    const sel = document.getElementById('proj-selector');
+    sel.innerHTML = '';
+    ANIMALS.forEach((a, i) => {
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = a.name;
+      sel.appendChild(opt);
+    });
+    
+    loadProjectorData(0);
+    window.showView('projector');
+  };
+
+  window.switchProjector = function(idx) {
+    loadProjectorData(parseInt(idx));
+  };
+
+  function loadProjectorData(idx) {
+    const animal = ANIMALS[idx];
+    document.getElementById('pv-title').textContent = animal.name;
+    document.getElementById('pv-img-human').src = animal.img;
+    document.getElementById('pv-img-ai').src = animal.cam;
+    
+    // Odłącz poprzednie nasłuchiwanie (jeśli zmieniamy slajd)
+    if(activeListener) {
+      // W nowym SDK można nadpisywać referencje, ale uprośćmy logikę przypisując nową
+    }
+
+    const animalRef = ref(db, 'votes/' + animal.id);
+    
+    // NASŁUCHIWANIE NA ZMIANY W BAZIE (REALTIME)
+    activeListener = onValue(animalRef, (snapshot) => {
+      const data = snapshot.val();
+      const votes = data ? Object.values(data) : []; // zamiana obiektu kluczy Firebase na tablicę
+      
+      document.getElementById('pv-vote-count').textContent = votes.length;
+      
+      let tileCounts = new Array(TOTAL_TILES).fill(0);
+      let maxVotes = 0;
+      
+      votes.forEach(userSelection => {
+        userSelection.forEach(tileIdx => {
+          tileCounts[tileIdx]++;
+          if(tileCounts[tileIdx] > maxVotes) maxVotes = tileCounts[tileIdx];
+        });
+      });
+      
+      const container = document.getElementById('pv-grid-human');
+      container.innerHTML = '';
+      for(let i=0; i<TOTAL_TILES; i++) {
+        const tile = document.createElement('div');
+        tile.className = 'tile-heatmap';
+        if(maxVotes > 0 && tileCounts[i] > 0) {
+          const intensity = 0.1 + (0.7 * (tileCounts[i] / maxVotes));
+          tile.style.backgroundColor = `rgba(239, 68, 68, ${intensity})`;
+        }
+        container.appendChild(tile);
+      }
+    });
+  }
+
+  window.resetSession = function() {
+    if(!confirm("Uwaga: To bezpowrotnie usunie głosy z bazy danych dla wszystkich zdjęć! Jesteś pewien?")) return;
+    const rootRef = ref(db, 'votes');
+    remove(rootRef).then(() => {
+      alert("Baza danych została wyczyszczona.");
+    }).catch((error) => {
+      alert("Błąd podczas czyszczenia: " + error);
+    });
+  };
+</script>
+</body>
+</html>
