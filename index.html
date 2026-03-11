@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Pies czy Wilk?</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -13,7 +14,7 @@
     --teal:     #0D9488; --teal2:    #14B8A6; --amber:    #F59E0B;
     --red:      #EF4444; --green:    #22C55E; --muted:    #64748B;
     --silver:   #94A3B8; --text:     #E2E8F0;
-    --grid-cols: 6; /* Gęstość siatki */
+    --grid-cols: 6;
     --grid-rows: 6;
   }
   body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; display: flex; flex-direction: column; }
@@ -35,6 +36,20 @@
   .card h3 { margin-bottom: 0.5rem; color: var(--teal2); font-size: 1.5rem; }
   .card p { color: var(--muted); font-size: 0.875rem; line-height: 1.5; }
 
+  /* PASSWORD MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
+  .modal-overlay.hidden { display: none; }
+  .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2.5rem; width: 360px; text-align: center; }
+  .modal-box h3 { font-family: 'Syne', sans-serif; color: var(--teal2); margin-bottom: 0.5rem; font-size: 1.4rem; }
+  .modal-box p { color: var(--muted); font-size: 0.875rem; margin-bottom: 1.5rem; }
+  .modal-input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.75rem 1rem; border-radius: 6px; font-family: 'DM Mono', monospace; font-size: 1rem; letter-spacing: 0.1em; margin-bottom: 0.75rem; text-align: center; }
+  .modal-input:focus { outline: none; border-color: var(--teal); }
+  .modal-error { color: var(--red); font-size: 0.8rem; margin-bottom: 0.75rem; min-height: 1.2em; }
+  .btn-confirm { background: var(--teal); color: #fff; border: none; padding: 0.75rem 2rem; border-radius: 6px; font-weight: 600; cursor: pointer; width: 100%; font-family: inherit; font-size: 1rem; }
+  .btn-confirm:hover { background: var(--teal2); }
+  .btn-cancel { background: transparent; color: var(--muted); border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-family: inherit; margin-top: 0.5rem; width: 100%; }
+  .btn-cancel:hover { color: var(--text); }
+
   /* STUDENT VIEW */
   .sv-header { margin-bottom: 1.5rem; text-align: center; }
   .sv-instruction { color: var(--silver); margin-bottom: 1rem; text-align: center; }
@@ -45,13 +60,18 @@
   .tile:hover { background: rgba(255,255,255,0.2); }
   .tile.selected { background: rgba(239, 68, 68, 0.4); border-color: var(--red); }
   .sv-actions { display: flex; justify-content: space-between; max-width: 500px; margin: 1.5rem auto 0; align-items: center; }
-  .btn-submit { background: var(--teal); color: #fff; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; font-weight: 600; cursor: pointer; }
+  .btn-submit { background: var(--teal); color: #fff; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; font-weight: 600; cursor: pointer; font-family: inherit; }
   .btn-submit:hover { background: var(--teal2); }
-  .btn-clear { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer; }
+  .btn-clear { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer; font-family: inherit; }
 
   /* PROJECTOR VIEW */
   .pv-layout { display: flex; flex-direction: column; gap: 2rem; height: 100%; }
-  .pv-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+  .pv-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 1rem; flex-wrap: wrap; gap: 1rem; }
+  .pv-nav { display: flex; align-items: center; gap: 0.75rem; }
+  .pv-nav-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 36px; height: 36px; border-radius: 4px; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+  .pv-nav-btn:hover:not(:disabled) { border-color: var(--teal); color: var(--teal2); }
+  .pv-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .pv-nav-label { color: var(--teal2); font-family: 'Syne', sans-serif; font-size: 1rem; min-width: 80px; text-align: center; }
   .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
   .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; }
   .panel h3 { color: var(--teal2); margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
@@ -60,8 +80,27 @@
   .gradcam-img { width: 100%; height: auto; display: block; object-fit: cover; }
   .tile-heatmap { border: 1px solid rgba(255,255,255,0.05); }
   .session-controls { margin-top: 2rem; text-align: center; }
-  .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--red); border: 1px solid var(--red); padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
-  @media(max-width: 768px) { .comparison-grid { grid-template-columns: 1fr; } }
+  .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--red); border: 1px solid var(--red); padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-family: inherit; }
+
+  /* PARTICIPANTS COUNTER */
+  .participants-bar { display: flex; align-items: center; gap: 1rem; background: rgba(13,148,136,0.08); border: 1px solid rgba(13,148,136,0.2); border-radius: 8px; padding: 0.75rem 1.25rem; }
+  .participants-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .participants-label { color: var(--silver); font-size: 0.875rem; }
+  .participants-count { color: #fff; font-weight: 700; font-size: 1.1rem; font-family: 'Syne', sans-serif; }
+
+  /* QR PANEL */
+  .qr-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; display: flex; align-items: center; gap: 2rem; flex-wrap: wrap; }
+  .qr-box { background: #fff; padding: 10px; border-radius: 6px; line-height: 0; flex-shrink: 0; }
+  .qr-info { flex: 1; min-width: 200px; }
+  .qr-info h3 { font-family: 'Syne', sans-serif; color: var(--teal2); margin-bottom: 0.5rem; }
+  .qr-info p { color: var(--muted); font-size: 0.875rem; line-height: 1.6; }
+  .qr-url { color: var(--teal2); font-size: 0.8rem; word-break: break-all; margin-top: 0.5rem; background: var(--bg); padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid var(--border); }
+
+  /* AI TILE OVERLAY */
+  .ai-tile-overlay { border: 2px solid rgba(20,184,166,0.7) !important; background: rgba(20,184,166,0.15) !important; }
+
+  @media(max-width: 768px) { .comparison-grid { grid-template-columns: 1fr; } .qr-panel { flex-direction: column; align-items: flex-start; } }
 </style>
 </head>
 <body>
@@ -71,6 +110,18 @@
   <button class="nav-btn" onclick="showView('start')" id="btn-home" style="display:none;">Strona Główna</button>
 </header>
 
+<!-- PASSWORD MODAL -->
+<div class="modal-overlay hidden" id="password-modal">
+  <div class="modal-box">
+    <h3>🔒 Prowadzący</h3>
+    <p>Podaj hasło dostępu do panelu prowadzącego.</p>
+    <input type="password" class="modal-input" id="password-input" placeholder="••••••••" onkeydown="if(event.key==='Enter') checkPassword()">
+    <div class="modal-error" id="password-error"></div>
+    <button class="btn-confirm" onclick="checkPassword()">Wejdź</button>
+    <button class="btn-cancel" onclick="closePasswordModal()">Anuluj</button>
+  </div>
+</div>
+
 <div id="view-start" class="view active">
   <h1 class="hero-title">Jak maszyna widzi obraz</h1>
   <p class="hero-sub">Zaznacz najważniejsze cechy na zdjęciu i porównaj swoją intuicję z mapą aktywacji (Grad-CAM) sieci neuronowej ResNet50.</p>
@@ -79,9 +130,9 @@
       <h3>Jestem Uczestnikiem</h3>
       <p>Będę zaznaczać obszary (cechy) na zdjęciach, które decydują o klasyfikacji obrazu.</p>
     </div>
-    <div class="card" onclick="startProjector()">
-      <h3>Pokaż Wyniki (Projektor)</h3>
-      <p>Główny ekran warsztatowy pokazujący zagregowane wyniki na żywo.</p>
+    <div class="card" onclick="openPasswordModal()">
+      <h3>Jestem Prowadzącym</h3>
+      <p>Panel z QR kodem, wynikami na żywo i narzędziami warsztatowymi.</p>
     </div>
   </div>
 </div>
@@ -109,10 +160,32 @@
 
 <div id="view-projector" class="view">
   <div class="pv-layout">
-    <div class="pv-top">
-      <h2>Wyniki na żywo: <span id="pv-title" style="color:var(--teal2);">Zwierzę 1</span></h2>
-      <select id="proj-selector" style="padding:0.5rem; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:4px;" onchange="switchProjector(this.value)"></select>
+
+    <!-- QR CODE + JOIN COUNTER -->
+    <div class="qr-panel" id="qr-panel">
+      <div class="qr-box" id="qrcode-container"></div>
+      <div class="qr-info">
+        <h3>Dołącz do warsztatu</h3>
+        <p>Zeskanuj kod QR telefonem i zaznacz obszary na zdjęciach.</p>
+        <div class="qr-url" id="qr-url-text"></div>
+        <div style="display:flex; align-items:center; gap:0.75rem; margin-top:1rem;" class="participants-bar">
+          <div class="participants-dot"></div>
+          <span class="participants-label">Uczestników, którzy głosowali:</span>
+          <span class="participants-count" id="participants-count">0</span>
+        </div>
+      </div>
     </div>
+
+    <!-- NAVIGATION -->
+    <div class="pv-top">
+      <h2 style="font-family:'Syne',sans-serif;">Wyniki na żywo: <span id="pv-title" style="color:var(--teal2);">Zwierzę 1</span></h2>
+      <div class="pv-nav">
+        <button class="pv-nav-btn" id="btn-prev" onclick="navigateProjector(-1)" disabled title="Poprzednie">&#8592;</button>
+        <span class="pv-nav-label" id="pv-nav-label">1 / 6</span>
+        <button class="pv-nav-btn" id="btn-next" onclick="navigateProjector(1)" title="Następne">&#8594;</button>
+      </div>
+    </div>
+
     <div class="comparison-grid">
       <div class="panel">
         <h3>Klasa (Ludzka Intuicja)</h3>
@@ -122,6 +195,11 @@
           <div class="grid-overlay" id="pv-grid-human"></div>
         </div>
         <p style="margin-top:1rem; color:var(--silver); font-size:0.875rem;">Liczba głosów łącznie: <strong id="pv-vote-count" style="color:#fff;">0</strong></p>
+        <p style="margin-top:0.4rem; color:var(--muted); font-size:0.75rem;">
+          <span style="display:inline-block; width:12px; height:12px; background:rgba(239,68,68,0.5); border:1px solid var(--red); vertical-align:middle; margin-right:4px;"></span>Ludzka intuicja
+          &nbsp;&nbsp;
+          <span style="display:inline-block; width:12px; height:12px; background:rgba(20,184,166,0.2); border:2px solid rgba(20,184,166,0.7); vertical-align:middle; margin-right:4px;"></span>Kafelki AI
+        </p>
       </div>
       <div class="panel">
         <h3>Model ResNet50 (Grad-CAM)</h3>
@@ -156,10 +234,37 @@
   const db = getDatabase(app);
 
   // ==========================================
+  // HASŁO PROWADZĄCEGO
+  // ==========================================
+  const LEADER_PASSWORD = "warsztaty2025";
+
+  window.openPasswordModal = function() {
+    document.getElementById('password-modal').classList.remove('hidden');
+    document.getElementById('password-input').value = '';
+    document.getElementById('password-error').textContent = '';
+    setTimeout(() => document.getElementById('password-input').focus(), 100);
+  };
+
+  window.closePasswordModal = function() {
+    document.getElementById('password-modal').classList.add('hidden');
+  };
+
+  window.checkPassword = function() {
+    const val = document.getElementById('password-input').value;
+    if (val === LEADER_PASSWORD) {
+      document.getElementById('password-modal').classList.add('hidden');
+      startProjector();
+    } else {
+      document.getElementById('password-error').textContent = 'Nieprawidłowe hasło. Spróbuj ponownie.';
+      document.getElementById('password-input').value = '';
+      document.getElementById('password-input').focus();
+    }
+  };
+
+  // ==========================================
   // KONFIGURACJA DANYCH
   // ==========================================
   const ANIMALS = [
-    // ----------------- PIESKI -----------------
     {
       id: 'pies1',
       img: 'zdjecia_apka/pieski/n02111889_2476.jpg',
@@ -181,8 +286,6 @@
       name: 'Pies 3',
       aiTiles: [16, 15, 10, 21, 22, 9, 27]
     },
-
-    // ----------------- WILKI -----------------
     {
       id: 'wilk1',
       img: 'zdjecia_apka/wilki/axelforhomepage.jpg',
@@ -211,9 +314,12 @@
   const TOTAL_TILES = GRID_COLS * GRID_ROWS;
 
   let activeAnimalIdx = 0;
+  let projectorIdx = 0;
   let studentTiles = new Set();
   let studentCompleted = new Set();
   let activeListener = null;
+  let participantsListener = null;
+  let qrGenerated = false;
 
   // ==========================================
   // NAWIGACJA
@@ -282,11 +388,14 @@
     }
     
     const animalId = ANIMALS[activeAnimalIdx].id;
-    
-    // ZAPIS DO FIREBASE
     const votesRef = ref(db, 'votes/' + animalId);
     push(votesRef, Array.from(studentTiles));
     
+    // Track unique participant session
+    const sessionId = getOrCreateSessionId();
+    const participantRef = ref(db, 'participants/' + sessionId);
+    push(participantRef, { ts: Date.now() });
+
     studentCompleted.add(activeAnimalIdx);
     
     document.querySelector('.captcha-wrapper').style.display = 'none';
@@ -306,6 +415,20 @@
     document.getElementById('submitted-msg').style.display = 'block';
   };
 
+  function getOrCreateSessionId() {
+    // Use sessionStorage to track unique participants per session
+    try {
+      let sid = sessionStorage.getItem('bbcaptcha_sid');
+      if (!sid) {
+        sid = 'u_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        sessionStorage.setItem('bbcaptcha_sid', sid);
+      }
+      return sid;
+    } catch(e) {
+      return 'u_' + Math.random().toString(36).substr(2, 9);
+    }
+  }
+
   window.resetStudentForNext = function() {
     let nextIdx = -1;
     for(let i=0; i < ANIMALS.length; i++) {
@@ -316,42 +439,76 @@
   };
 
   // ==========================================
-  // WIDOK PROJEKTORA (NASŁUCHIWANIE Z FIREBASE)
+  // WIDOK PROJEKTORA
   // ==========================================
   window.startProjector = function() {
-    const sel = document.getElementById('proj-selector');
-    sel.innerHTML = '';
-    ANIMALS.forEach((a, i) => {
-      const opt = document.createElement('option');
-      opt.value = i; opt.textContent = a.name;
-      sel.appendChild(opt);
-    });
-    
+    projectorIdx = 0;
+    generateQR();
+    setupParticipantsListener();
     loadProjectorData(0);
     window.showView('projector');
   };
 
-  window.switchProjector = function(idx) {
-    loadProjectorData(parseInt(idx));
+  function generateQR() {
+    if (qrGenerated) return;
+    const url = 'https://juliancia.github.io/warsztaty_bbc/';
+    document.getElementById('qr-url-text').textContent = url;
+    const container = document.getElementById('qrcode-container');
+    container.innerHTML = '';
+    new QRCode(container, {
+      text: url,
+      width: 140,
+      height: 140,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+    qrGenerated = true;
+  }
+
+  function setupParticipantsListener() {
+    // Count unique participants by counting unique vote-senders across all animals
+    // We listen on all votes and count unique sessions via participant tracking
+    const participantsRef = ref(db, 'participants');
+    if (participantsListener) participantsListener();
+    participantsListener = onValue(participantsRef, (snapshot) => {
+      const data = snapshot.val();
+      const count = data ? Object.keys(data).length : 0;
+      document.getElementById('participants-count').textContent = count;
+    });
+  }
+
+  window.navigateProjector = function(dir) {
+    const newIdx = projectorIdx + dir;
+    if (newIdx < 0 || newIdx >= ANIMALS.length) return;
+    projectorIdx = newIdx;
+    loadProjectorData(projectorIdx);
+    updateNavButtons();
   };
+
+  function updateNavButtons() {
+    document.getElementById('btn-prev').disabled = projectorIdx === 0;
+    document.getElementById('btn-next').disabled = projectorIdx === ANIMALS.length - 1;
+    document.getElementById('pv-nav-label').textContent = `${projectorIdx + 1} / ${ANIMALS.length}`;
+  }
 
   function loadProjectorData(idx) {
     const animal = ANIMALS[idx];
     document.getElementById('pv-title').textContent = animal.name;
     document.getElementById('pv-img-human').src = animal.img;
     document.getElementById('pv-img-ai').src = animal.cam;
-    
-    // Odłącz poprzednie nasłuchiwanie (jeśli zmieniamy slajd)
-    if(activeListener) {
-      // W nowym SDK można nadpisywać referencje, ale uprośćmy logikę przypisując nową
+    updateNavButtons();
+
+    // Detach previous listener by overwriting (Firebase SDK handles cleanup via returned unsubscribe)
+    if (activeListener && typeof activeListener === 'function') {
+      activeListener();
     }
 
     const animalRef = ref(db, 'votes/' + animal.id);
     
-    // NASŁUCHIWANIE NA ZMIANY W BAZIE (REALTIME)
     activeListener = onValue(animalRef, (snapshot) => {
       const data = snapshot.val();
-      const votes = data ? Object.values(data) : []; // zamiana obiektu kluczy Firebase na tablicę
+      const votes = data ? Object.values(data) : [];
       
       document.getElementById('pv-vote-count').textContent = votes.length;
       
@@ -359,20 +516,39 @@
       let maxVotes = 0;
       
       votes.forEach(userSelection => {
-        userSelection.forEach(tileIdx => {
-          tileCounts[tileIdx]++;
-          if(tileCounts[tileIdx] > maxVotes) maxVotes = tileCounts[tileIdx];
-        });
+        if (Array.isArray(userSelection)) {
+          userSelection.forEach(tileIdx => {
+            tileCounts[tileIdx]++;
+            if(tileCounts[tileIdx] > maxVotes) maxVotes = tileCounts[tileIdx];
+          });
+        }
       });
       
+      const aiTilesSet = new Set(animal.aiTiles);
       const container = document.getElementById('pv-grid-human');
       container.innerHTML = '';
+
       for(let i=0; i<TOTAL_TILES; i++) {
         const tile = document.createElement('div');
-        tile.className = 'tile-heatmap';
-        if(maxVotes > 0 && tileCounts[i] > 0) {
-          const intensity = 0.1 + (0.7 * (tileCounts[i] / maxVotes));
-          tile.style.backgroundColor = `rgba(239, 68, 68, ${intensity})`;
+        
+        if (aiTilesSet.has(i)) {
+          // AI tile: teal outline
+          tile.className = 'tile-heatmap ai-tile-overlay';
+          if(maxVotes > 0 && tileCounts[i] > 0) {
+            const intensity = 0.1 + (0.7 * (tileCounts[i] / maxVotes));
+            // Blend: show both red human heat + teal border
+            tile.style.backgroundColor = `rgba(239, 68, 68, ${intensity})`;
+            tile.style.border = '2px solid rgba(20,184,166,0.85)';
+          } else {
+            tile.style.backgroundColor = 'rgba(20,184,166,0.12)';
+            tile.style.border = '2px solid rgba(20,184,166,0.6)';
+          }
+        } else {
+          tile.className = 'tile-heatmap';
+          if(maxVotes > 0 && tileCounts[i] > 0) {
+            const intensity = 0.1 + (0.7 * (tileCounts[i] / maxVotes));
+            tile.style.backgroundColor = `rgba(239, 68, 68, ${intensity})`;
+          }
         }
         container.appendChild(tile);
       }
@@ -383,6 +559,9 @@
     if(!confirm("Uwaga: To bezpowrotnie usunie głosy z bazy danych dla wszystkich zdjęć! Jesteś pewien?")) return;
     const rootRef = ref(db, 'votes');
     remove(rootRef).then(() => {
+      const pRef = ref(db, 'participants');
+      return remove(pRef);
+    }).then(() => {
       alert("Baza danych została wyczyszczona.");
     }).catch((error) => {
       alert("Błąd podczas czyszczenia: " + error);
